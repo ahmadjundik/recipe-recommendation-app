@@ -16,7 +16,7 @@ def load_data():
     return df
 
 # ===========================
-# Load model (hanya untuk query baru)
+# Load model
 # ===========================
 @st.cache_resource
 def load_model():
@@ -32,7 +32,7 @@ def load_embeddings():
 # ===========================
 # Rekomendasi resep
 # ===========================
-def recommend(query, cuisine, course, diet, df, embeddings, model, top_n=10):
+def recommend(query, cuisine, course, diet, df, embeddings, model, top_n=15):
     query_text = query
     if cuisine != "All":
         query_text += " " + cuisine
@@ -49,35 +49,34 @@ def recommend(query, cuisine, course, diet, df, embeddings, model, top_n=10):
 # ===========================
 # Streamlit UI
 # ===========================
-st.set_page_config(page_title="Recipe Recommendation App", page_icon="🍴", layout="wide")
+st.set_page_config(page_title="🍴 Recipe Recommendation App", page_icon="🍲", layout="wide")
 
-st.title("🍴 Recipe Recommendation App")
-st.write("Cari resep berdasarkan **description + cuisine + course + diet**")
+st.title("🍲 Recipe Recommendation System")
+st.write("Rekomendasi makanan berdasarkan **description + cuisine + course + diet** menggunakan Sentence-BERT")
 
 df = load_data()
 model = load_model()
 embeddings = load_embeddings()
 
-query = st.text_input("Masukkan kata kunci (contoh: spicy curry, vegetarian, Italian)", "")
+# Pilih makanan sebagai query
+query = st.selectbox("Pilih makanan sebagai kata kunci:", sorted(df["name"].unique()))
+
+# Dropdown filter
 cuisine = st.selectbox("Pilih Cuisine:", ["All"] + sorted(df["cuisine"].dropna().unique()))
 course = st.selectbox("Pilih Course:", ["All"] + sorted(df["course"].dropna().unique()))
 diet = st.selectbox("Pilih Diet:", ["All"] + sorted(df["diet"].dropna().unique()))
 
-top_n = st.slider("Jumlah rekomendasi:", 5, 20, 10)
+# Jumlah rekomendasi fix 15
+top_n = 15
 
-if st.button("Cari Rekomendasi"):
-    if query.strip() == "" and cuisine == "All" and course == "All" and diet == "All":
-        st.warning("Masukkan kata kunci atau pilih filter minimal 1.")
-    else:
-        results, scores = recommend(query, cuisine, course, diet, df, embeddings, model, top_n)
-        for i, (idx, row) in enumerate(results.iterrows()):
-            st.markdown(f"### 🍽️ {row['name']}")
-            if "image_url" in row and pd.notna(row["image_url"]):
-                st.image(row["image_url"], width=300)
-            st.write(f"**Cuisine:** {row['cuisine']} | **Course:** {row['course']} | **Diet:** {row['diet']}")
-            st.write(f"**Description:** {row['description']}")
-            st.write(f"**Instructions:** {row['instructions']}")
-            st.write(f"**Prep Time:** {row['prep_time']}")
-            st.caption(f"Relevance score: {scores[i]:.4f}")
-            st.divider()
-
+if st.button("Dapatkan Rekomendasi"):
+    results, scores = recommend(query, cuisine, course, diet, df, embeddings, model, top_n)
+    st.subheader("🔎 Hasil Rekomendasi:")
+    for i, (idx, row) in enumerate(results.iterrows()):
+        st.markdown(f"### {i+1}. {row['name']}")
+        st.write(f"**Cuisine:** {row['cuisine']} | **Course:** {row['course']} | **Diet:** {row['diet']}")
+        st.write(f"**Description:** {row['description']}")
+        st.write(f"**Instructions:** {row['instructions']}")
+        st.write(f"**Prep Time:** {row['prep_time']}")
+        st.caption(f"Relevance score: {scores[i]:.4f}")
+        st.divider()
