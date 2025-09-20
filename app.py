@@ -1,6 +1,7 @@
 # app.py
 import streamlit as st
 import pandas as pd
+import numpy as np
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -15,26 +16,18 @@ def load_data():
     return df
 
 # ===========================
-# Load model
+# Load model (hanya untuk query baru)
 # ===========================
 @st.cache_resource
 def load_model():
     return SentenceTransformer("all-MiniLM-L6-v2")
 
 # ===========================
-# Compute embeddings
+# Load precomputed embeddings
 # ===========================
 @st.cache_resource
-def compute_embeddings(df, model):
-    texts = (
-        df["name"].astype(str) + " " +
-        df["description"].astype(str) + " " +
-        df["cuisine"].astype(str) + " " +
-        df["course"].astype(str) + " " +
-        df["diet"].astype(str) + " " +
-        df["instructions"].astype(str)
-    ).tolist()
-    return model.encode(texts, show_progress_bar=True)
+def load_embeddings():
+    return np.load("embeddings.npy")
 
 # ===========================
 # Rekomendasi resep
@@ -63,20 +56,15 @@ st.write("Cari resep berdasarkan **description + cuisine + course + diet**")
 
 df = load_data()
 model = load_model()
-embeddings = compute_embeddings(df, model)
+embeddings = load_embeddings()
 
-# Input query
 query = st.text_input("Masukkan kata kunci (contoh: spicy curry, vegetarian, Italian)", "")
-
-# Dropdown filter
 cuisine = st.selectbox("Pilih Cuisine:", ["All"] + sorted(df["cuisine"].dropna().unique()))
 course = st.selectbox("Pilih Course:", ["All"] + sorted(df["course"].dropna().unique()))
 diet = st.selectbox("Pilih Diet:", ["All"] + sorted(df["diet"].dropna().unique()))
 
-# Slider jumlah rekomendasi
 top_n = st.slider("Jumlah rekomendasi:", 5, 20, 10)
 
-# Tampilkan hasil
 if st.button("Cari Rekomendasi"):
     if query.strip() == "" and cuisine == "All" and course == "All" and diet == "All":
         st.warning("Masukkan kata kunci atau pilih filter minimal 1.")
@@ -92,3 +80,4 @@ if st.button("Cari Rekomendasi"):
             st.write(f"**Prep Time:** {row['prep_time']}")
             st.caption(f"Relevance score: {scores[i]:.4f}")
             st.divider()
+
